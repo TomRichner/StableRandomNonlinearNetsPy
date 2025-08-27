@@ -1,0 +1,2 @@
+# StableRandomNonlinearNetsPyCodex
+StableRandomNonlinearNetsPy as implemented by codex
