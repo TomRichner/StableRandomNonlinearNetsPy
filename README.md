@@ -3,8 +3,8 @@
 Continuous‑time RNNs with spike‑frequency adaptation (SFA) and short‑term synaptic depression (STD).
 
 ### Goal
-Port the code in Matlab to Python, preserving functionality and figures:
-- Copy over `Matlab/docs/` to /docs/
+Port the code in /Matlab to Python, preserving functionality and figures:
+- Copy over `Matlab/docs` to /docs
 - Reimplement the SRNN ODE (`SRNN_NL.m`) and example (`SRNN_basic_example.m`)
 - Add plotting (time series, raster/stacked, network graph)
 - Implement Lyapunov exponent tooling (Benettin, QR)
