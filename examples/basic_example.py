@@ -113,6 +113,25 @@ def main():
     a_E_ts, a_I_ts, b_E_ts, b_I_ts, u_d_ts = unpack_trajectory(X, params)
     r, p = compute_dependent(a_E_ts, a_I_ts, b_E_ts, b_I_ts, u_d_ts, params)
 
+    # Build SFA contribution c_SFA * sum(a_*) and STD product prod(b_*) for plotting
+    n = params.n
+    nt = u_d_ts.shape[1]
+    sfa_contrib = np.zeros((n, nt))
+    if (params.n_E > 0) and (params.n_a_E > 0) and (a_E_ts is not None):
+        sum_a_E = np.sum(a_E_ts, axis=1)  # (n_E, nt)
+        sfa_contrib[params.E_indices, :] += params.c_SFA[params.E_indices][:, None] * sum_a_E
+    if (params.n_I > 0) and (params.n_a_I > 0) and (a_I_ts is not None):
+        sum_a_I = np.sum(a_I_ts, axis=1)  # (n_I, nt)
+        sfa_contrib[params.I_indices, :] += params.c_SFA[params.I_indices][:, None] * sum_a_I
+
+    std_prod = np.ones((n, nt))
+    if (params.n_E > 0) and (params.n_b_E > 0) and (b_E_ts is not None):
+        prod_b_E = np.prod(b_E_ts, axis=1)  # (n_E, nt)
+        std_prod[params.E_indices, :] = prod_b_E
+    if (params.n_I > 0) and (params.n_b_I > 0) and (b_I_ts is not None):
+        prod_b_I = np.prod(b_I_ts, axis=1)  # (n_I, nt)
+        std_prod[params.I_indices, :] = prod_b_I
+
     # Example: compute LLE via Benettin
     LLE, local_lya, finite_lya, t_lya = benettin_algorithm(
         X, t_out, dt, fs, d0=1e-3, T=T, lya_dt=0.5 * params.tau_d, params=params,
@@ -124,15 +143,28 @@ def main():
     try:
         import matplotlib.pyplot as plt
 
-        fig, axes = plt.subplots(3, 1, figsize=(10, 7), sharex=True)
-        axes[0].plot(t_out, r.T)
-        axes[0].set_ylabel("r (Hz)")
-        axes[1].plot(t_out, u_d_ts.T)
-        axes[1].set_ylabel("u_d")
-        axes[2].plot(t_lya, local_lya, label="local")
-        axes[2].plot(t_lya, finite_lya, label="finite")
-        axes[2].legend()
-        axes[2].set_xlabel("t (s)")
+        fig, axes = plt.subplots(6, 1, figsize=(11, 10), sharex=True)
+        # u_ex
+        axes[0].plot(t_out, u_ex.T, alpha=0.7)
+        axes[0].set_ylabel("u_ex")
+        # r
+        axes[1].plot(t_out, r.T)
+        axes[1].set_ylabel("r (Hz)")
+        # u_d
+        axes[2].plot(t_out, u_d_ts.T)
+        axes[2].set_ylabel("u_d")
+        # SFA contribution
+        axes[3].plot(t_out, sfa_contrib.T)
+        axes[3].set_ylabel("SFA c*sum(a)")
+        # STD product
+        axes[4].plot(t_out, std_prod.T)
+        axes[4].set_ylabel("STD prod(b)")
+        axes[4].set_ylim(0, 1.05)
+        # LLEs
+        axes[5].plot(t_lya, local_lya, label="local")
+        axes[5].plot(t_lya, finite_lya, label="finite")
+        axes[5].legend()
+        axes[5].set_xlabel("t (s)")
         fig.tight_layout()
         plt.show()
     except Exception as e:
@@ -142,4 +174,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
