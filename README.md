@@ -3,11 +3,11 @@
 Continuous‑time RNNs with spike‑frequency adaptation (SFA) and short‑term synaptic depression (STD).
 
 ### Goal
-Port the MATLAB repo `dual_adaptation_random_matrix_theory` to Python here, preserving functionality and figures:
-- Copy over `docs/`
+Port the code in Matlab to Python, preserving functionality and figures:
+- Copy over `Matlab/docs/` to /docs/
 - Reimplement the SRNN ODE (`SRNN_NL.m`) and example (`SRNN_basic_example.m`)
 - Add plotting (time series, raster/stacked, network graph)
-- Implement Lyapunov exponent tooling (Benettin, QR; SVD optional)
+- Implement Lyapunov exponent tooling (Benettin, QR)
 
 ### Python packages
 - Core runtime
@@ -21,8 +21,7 @@ Port the MATLAB repo `dual_adaptation_random_matrix_theory` to Python here, pres
   - h5py or numpy.savez: saving results
   - joblib (optional): parallel sweeps
 - Lyapunov utilities
-  - numpy.linalg.qr, numpy.linalg.svd for QR/SVD methods
-  - Optional alt: jax + diffrax (future) for autodiff Jacobians and high‑performance ODEs
+  - numpy.linalg.qr
 - Dev/test
   - pytest (tests), black/ruff (format/lint), mypy (types), pre-commit (hooks)
 
@@ -48,12 +47,8 @@ SRNN_py/
     algorithms/lyapunov/
       benettin.py            # largest LE
       qr.py                  # full spectrum via QR
-      svd.py                 # (optional) SVD spectrum
   examples/
     basic_example.py         # port of SRNN_basic_example.m
-  tests/
-    test_dynamics.py         # shape/consistency tests
-    test_lorenz_lya.py       # parity with provided tests where applicable
 ```
 
 ### Porting plan (no coding yet)
