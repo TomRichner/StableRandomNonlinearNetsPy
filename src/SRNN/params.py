@@ -11,6 +11,41 @@ Activation = Callable[[np.ndarray], np.ndarray]
 
 @dataclass
 class Params:
+    """
+    Dataclass holding all parameters for an SRNN model instance.
+
+    Attributes:
+    ----------
+    n_E, n_I: int
+        Number of excitatory and inhibitory neurons.
+    E_indices, I_indices: np.ndarray
+        Arrays of integer indices for E and I neurons.
+    n_a_E, n_a_I: int
+        Number of spike-frequency adaptation (SFA) timescales for E/I pops.
+    n_b_E, n_b_I: int
+        Number of short-term depression (STD) timescales for E/I pops.
+    tau_a_E, tau_a_I: np.ndarray | None
+        Time constants for SFA variables.
+    tau_b_E, tau_b_I: np.ndarray | None
+        Time constants for STD variables.
+    tau_d: float
+        Time constant for synaptic drive dynamics `u_d`.
+    n: int
+        Total number of neurons (n_E + n_I).
+    M: np.ndarray
+        (n, n) connectivity matrix.
+    EI_vec: np.ndarray
+        (n,) vector with +1 for excitatory, -1 for inhibitory neurons.
+    c_SFA: np.ndarray
+        (n,) vector of coupling strengths for SFA. A neuron's SFA is the
+        sum of its `a` variables scaled by its `c_SFA` value.
+    F_STD: np.ndarray
+        (n,) vector of factors for STD.
+    tau_STD: float
+        Time constant for STD recovery.
+    activation_function: Optional[Activation]
+        A callable activation function (e.g., ReLU). If None, defaults to identity.
+    """
     # Sizes
     n_E: int
     n_I: int

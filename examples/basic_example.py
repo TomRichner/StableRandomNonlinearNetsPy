@@ -3,13 +3,9 @@ from __future__ import annotations
 import numpy as np
 from scipy.signal import square
 
+from SRNN import SRNN, package_params
 from SRNN.utils.generate_M_no_iso import generate_M_no_iso
 from SRNN.utils.get_EI_indices import get_EI_indices
-from SRNN.params import package_params
-from SRNN.simulate import solve
-from SRNN.state import unpack_trajectory
-from SRNN.dependent import compute_dependent
-from SRNN.algorithms.lyapunov.benettin import benettin_algorithm
 
 
 def main():
@@ -98,75 +94,24 @@ def main():
         EI_vec,
     )
 
+    # --- Simulation using the new OO API ---
+    model = SRNN(params)
+
     # Initial conditions
-    a0_E = np.zeros(n_E * n_a_E) if (n_E > 0 and n_a_E > 0) else np.array([])
-    a0_I = np.zeros(n_I * n_a_I) if (n_I > 0 and n_a_I > 0) else np.array([])
-    b0_E = np.ones(n_E * n_b_E) if (n_E > 0 and n_b_E > 0) else np.array([])
-    b0_I = np.ones(n_I * n_b_I) if (n_I > 0 and n_b_I > 0) else np.array([])
-    u_d0 = np.zeros(n)
-    X0 = np.concatenate([a0_E, a0_I, b0_E, b0_I, u_d0])
+    X0 = model.get_initial_state()
 
     # Integrate
-    t_out, X = solve(T, t, X0, t, u_ex, params, method="BDF", rtol=1e-7, atol=1e-8, max_step=dt)
-
-    # Unpack and compute dependent variables
-    a_E_ts, a_I_ts, b_E_ts, b_I_ts, u_d_ts = unpack_trajectory(X, params)
-    r, p = compute_dependent(a_E_ts, a_I_ts, b_E_ts, b_I_ts, u_d_ts, params)
-
-    # Build SFA contribution c_SFA * sum(a_*) and STD product prod(b_*) for plotting
-    n = params.n
-    nt = u_d_ts.shape[1]
-    sfa_contrib = np.zeros((n, nt))
-    if (params.n_E > 0) and (params.n_a_E > 0) and (a_E_ts is not None):
-        sum_a_E = np.sum(a_E_ts, axis=1)  # (n_E, nt)
-        sfa_contrib[params.E_indices, :] += params.c_SFA[params.E_indices][:, None] * sum_a_E
-    if (params.n_I > 0) and (params.n_a_I > 0) and (a_I_ts is not None):
-        sum_a_I = np.sum(a_I_ts, axis=1)  # (n_I, nt)
-        sfa_contrib[params.I_indices, :] += params.c_SFA[params.I_indices][:, None] * sum_a_I
-
-    std_prod = np.ones((n, nt))
-    if (params.n_E > 0) and (params.n_b_E > 0) and (b_E_ts is not None):
-        prod_b_E = np.prod(b_E_ts, axis=1)  # (n_E, nt)
-        std_prod[params.E_indices, :] = prod_b_E
-    if (params.n_I > 0) and (params.n_b_I > 0) and (b_I_ts is not None):
-        prod_b_I = np.prod(b_I_ts, axis=1)  # (n_I, nt)
-        std_prod[params.I_indices, :] = prod_b_I
+    trajectory = model.solve(T, t, X0, t, u_ex, method="RK45", rtol=1e-7, atol=1e-8, max_step=dt)
 
     # Example: compute LLE via Benettin
-    LLE, local_lya, finite_lya, t_lya = benettin_algorithm(
-        X, t_out, dt, fs, d0=1e-3, T=T, lya_dt=0.5 * params.tau_d, params=params,
-        dyn_factory=None, t_ex=t, u_ex=u_ex, method="BDF"
-    )
+    lle_results = trajectory.calculate_lle(dt=dt, fs=fs, d0=1e-3)
+    LLE, _, finite_lya, _ = lle_results
     print({"LLE": float(LLE), "last_finite": float(finite_lya[~np.isnan(finite_lya)][-1]) if np.any(~np.isnan(finite_lya)) else None})
 
     # Minimal plots if desired
     try:
         import matplotlib.pyplot as plt
-
-        fig, axes = plt.subplots(6, 1, figsize=(11, 10), sharex=True)
-        # u_ex
-        axes[0].plot(t_out, u_ex.T, alpha=0.7)
-        axes[0].set_ylabel("u_ex")
-        # r
-        axes[1].plot(t_out, r.T)
-        axes[1].set_ylabel("r (Hz)")
-        # u_d
-        axes[2].plot(t_out, u_d_ts.T)
-        axes[2].set_ylabel("u_d")
-        # SFA contribution
-        axes[3].plot(t_out, sfa_contrib.T)
-        axes[3].set_ylabel("SFA c*sum(a)")
-        # STD product
-        axes[4].plot(t_out, std_prod.T)
-        axes[4].set_ylabel("STD prod(b)")
-        axes[4].set_ylim(0, 1.05)
-        # LLEs
-        axes[5].plot(t_lya, local_lya, label="local")
-        axes[5].plot(t_lya, finite_lya, label="finite")
-        axes[5].legend()
-        axes[5].set_xlabel("t (s)")
-        fig.tight_layout()
-        plt.show()
+        trajectory.plot(lle_results=lle_results)
     except Exception as e:
         # plotting optional
         pass

@@ -23,6 +23,7 @@ def benettin_algorithm(
     method: str = "BDF",
     rtol: float = 1e-7,
     atol: float = 1e-8,
+    max_step: float | None = None,
 ):
     """
     Compute largest Lyapunov exponent using Benettin's algorithm.
@@ -84,7 +85,7 @@ def benettin_algorithm(
             method=method,
             rtol=rtol,
             atol=atol,
-            max_step=dt,
+            max_step=max_step if max_step is not None else dt,
         )
         X_pert_end = X_seg[-1]
 
