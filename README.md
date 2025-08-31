@@ -1,88 +1,53 @@
-# StableRandomNonlinearNetsPy
+# StableRandomNonlinearNets
 
-Continuous‑time RNNs with spike‑frequency adaptation (SFA) and short‑term synaptic depression (STD).
+This is a theoretical neuroscience project investigating two forms of adaptation found in the brain: (1) weight adaptation and (2) bias adaptation. Mechanistically these most closely align with short-term synaptic depression and spike frequency adaptation, respectively. We model the effect of dual adaptation on continuous time recurrent neural networks.
 
-### Goal
-Port the code in /Matlab to Python, preserving functionality and figures:
-- Copy over `Matlab/docs` to /docs
-- Reimplement the SRNN ODE (`SRNN_NL.m`) and example (`SRNN_basic_example.m`)
-- Add plotting (time series, raster/stacked, network graph)
-- Implement Lyapunov exponent tooling (Benettin, QR)
+## How to Run the code
 
-### Python packages
-- Core runtime
-  - numpy: array math
-  - scipy: ODE integration (`integrate.solve_ivp` with `RK45` and `BDF`), interpolation (`interpolate.interp1d`), linear algebra
-  - matplotlib: plotting
-  - numba (optional): JIT for RHS and dependent-variable computations
-  - networkx (optional): network visualization similar to MATLAB `digraph`
-  - seaborn (optional): nicer palettes for figures
-  - tqdm (optional): progress bars for parameter sweeps
-  - h5py or numpy.savez: saving results
-  - joblib (optional): parallel sweeps
-- Lyapunov utilities
-  - numpy.linalg.qr
-- Dev/test
-  - pytest (tests), black/ruff (format/lint), mypy (types), pre-commit (hooks)
+### Setup
+1.  Install the required Python packages:
+    ```bash
+    pip install numpy scipy matplotlib
+    ```
+2.  Install this project's package in editable mode from the root directory:
+    ```bash
+    pip install -e .
+    ```
 
-### Proposed structure
+### Basic example
+To run a basic example simulation, execute the following command from the root directory:
+```bash
+python examples/basic_example.py
 ```
-SRNN_py/
-  docs/                      # copied from MATLAB repo
-  src/SRNN/
-    __init__.py
-    activation.py            # ReLU default, plug-in activations
-    params.py                # Dataclass for all parameters (E/I, taus, M, etc.)
-    state.py                 # pack/unpack state vectors <-> structured views
-    dynamics.py              # ODE RHS (port of SRNN_NL.m)
-    simulate.py              # solve_ivp wrapper (RK45/ode45-like, BDF/ode15s-like)
-    dependent.py             # port of compute_dependent_variables.m
-    utils/
-      generate_M_no_iso.py   # port of generate_M_no_iso.m
-      get_EI_indices.py      # port of get_EI_indices.m
-      package_params.py      # creates Params object
-    plotting/
-      tseries.py             # port of SRNN_tseries_figure.m
-      network_graph.py       # network plot (widths/colors by E/I)
-    algorithms/lyapunov/
-      benettin.py            # largest LE
-      qr.py                  # full spectrum via QR
-  examples/
-    basic_example.py         # port of SRNN_basic_example.m
-```
+This script will run a simulation, print the calculated Lyapunov exponent, and display plots of the results.
 
-### Porting plan (no coding yet)
-1) Mirror documentation
-   - Copy `dual_adaptation_random_matrix_theory/docs/` into `SRNN_py/docs/`.
+## Project Overview
 
-2) Core ODE and params
-   - Implement `Params` dataclass; replicate E/I splits, timescales, coefficients, and `M`.
-   - Port `SRNN_NL.m` as `dynamics.py` RHS callable. Build `interp1d` once per simulation for `u_ex`.
-   - Port `package_params.m`, `get_EI_indices.m`, `unpack_SRNN_state.m` (as `state.py` helpers), `compute_dependent_variables.m` (as `dependent.py`).
+Our neural network model includes:
+- **Excitatory and inhibitory neurons** obeying Dale's principle
+- **Rectifying (ReLU) neurons** with nonlinear dynamics
+- **Adaptation only in excitatory neurons** - when there is high activity, weight and bias adaptation reduce the output of the E neurons, allowing the I neurons to "win" (i.e., dynamically balance the E neurons)
 
-3) Solver wrapper and example
-   - `simulate.py`: thin wrapper over `solve_ivp` with methods `RK45` (ode45‑like) and `BDF` (ode15s‑like), fixed `t_eval` grid.
-   - Reproduce `SRNN_basic_example.m` in `examples/basic_example.py` (same seed, params, and stimuli).
+## Model Equations
 
-4) Plotting parity
-   - Port `SRNN_tseries_figure.m` to `plotting/tseries.py` (input, mean E/I rates, stacked or raster, SFA sum, STD product, Lyapunov panel).
-   - `plotting/network_graph.py` using networkx to mimic MATLAB digraph figure.
+<img src="docs/equations/equations.png" alt="Model Equations" width="400"/>
 
-5) Lyapunov exponents
-   - Benettin: integrate reference + renormalized perturbation over intervals; record local/finite/global LLE.
-   - QR method: evolve tangent dynamics via Jacobian‑vector products and periodic QR; start with analytic Jacobian or finite differences; consider optional JAX later.
+The model consists of **n neurons** with the following variable dimensions:
+- **r**, **u_d**, **u_ex**, and **p** are **n × 1 vectors**
+- **M** is an **n × n** connectivity matrix
+- Each neuron has **k** adaptation state variables **a_k** 
+- Each neuron has **m** bias adaptation state variables **b_m**
+- Each neuron has **one dendrite state variable u_d**
+- The **total state size** is therefore **n × k + n × m + n × 1**
+- **r** and **p** are derived quantities from the state variables
+- **c_SFA**, **τ_d**, and **τ_STD** are constants
 
-6) Validation
-   - Shape/unit tests; reproducibility (fixed RNG seed), basic parity vs MATLAB outputs for small cases.
-   - Numerical note: minor differences expected due to solver tolerances and interpolation.
+## Abstract
 
-### Minimal dependencies to start
-```
-pip install numpy scipy matplotlib
-```
-Optional for speed/UX later: `numba networkx seaborn tqdm h5py joblib`.
+The brain is a highly recurrent neural network (RNN) that must remain dynamically stable, but near the edge of chaos. However, the dynamical stability of large continuous RNNs is tenuous, because the probability of unstable modes increases dramatically as network size and connectivity grows (May, 1972).  Intuitively, positive feedback loops within the brain have the potential to cause runaway re-excitation, leading to chaos. However, overly chaotic systems, as well as overly stable systems, underperform those on the edge of chaos (Langton, 1990). Moreover, the stability of linear dynamical systems depends entirely on connectivity (Lyapunov, 1892), so we might expect that learning rules must ensure dynamical stability. However, the brain is highly nonlinear and adaptive due to rectification, short-term synaptic depression (STD), and spike frequency adaptation (SFA).  We hypothesized that STD and SFA, which dynamically adapt connection weights and biases, respectively, will improve the stability of RNNs.  We investigated the scenario in which connectivity is random, sparse, and unbalanced. We found that (1) STD and SFA stabilize a wide range of RNNs, (2) STD and SFA keep these networks near the edge of chaos, depending on the longest timescale of adaptation, and (3) external stimulation engages STD and SFA to suppress hyperexcitability.
 
-### Notes on numerical behavior
-- Use `solve_ivp` with `BDF` for stiff cases (ode15s‑like) and `RK45` for non‑stiff (ode45‑like).
-- Build/expose solver tolerances (`rtol`, `atol`, `max_step`) to match MATLAB runs.
-- Cache `u_ex` interpolant per simulation to avoid per‑call allocation in the RHS.
+In conclusion, dynamic adaptation of both weights and biases via STD and SFA renders a wide range of networks stable and near the edge of chaos without any tuning of synaptic weights. Therefore, adaptation may be as important as connectivity with respect to stability, and learning rules need not ensure dynamical stability over the short term.  Further, we propose that stimulation may improve stability by engaging adaptation rather than simply inducing recurrent inhibition. Together, STD and SFA may be sufficient to stabilize the brain onto the edge of chaos.
+
+## License
+
+MIT License
